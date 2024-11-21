@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alcaldia Descentralizada
+    </title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header con logo -->
+        <header class="header">
+            <img  style="height: 100px; width: 400px;"     src="logo.png" alt="Logo" class="logo" id="logo">
+            <h1>Alcaldia Descentralizada
+            </h1>
+        </header>
+
+        <!-- Gráficos (ahora arriba de la tabla) -->
+        <section class="charts-section">
+            <div class="chart-container">
+                <canvas id="grafico-calificaciones"></canvas>
+            </div>
+            <div class="chart-container">
+                <canvas id="grafico-cursos"></canvas>
+            </div>
+        </section>
+
+        <!-- Tabla de estudiantes -->
+        <section class="table-section">
+            <h2>Lista de Personas encuestadas </h2>
+            <table border="1" id="tabla-estudiantes" class="styled-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre Completo</th>
+                        <th>Email</th>
+                        <th>Barrio</th>
+                        <th>Calificación</th>
+                        <th>Cédula</th>
+                        <th>Opinion</th>
+                        <th>Teléfono</th> <!-- Nueva columna -->
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </section>
+
+        <!-- Formulario de edición -->
+        <section class="form-section">
+            <h2>Editar Persona</h2>
+            <form id="form-editar" class="form">
+                <input type="hidden" id="id_estudiante" />
+                <label for="nombre_alumno">Nombre:</label>
+                <input type="text" id="nombre_alumno" required />
+
+                <label for="email_alumno">Email:</label>
+                <input type="email" id="email_alumno" required />
+
+                <label for="curso_alumno">Barrio:</label>
+                <input type="text" id="curso_alumno" required />
+
+                <label for="num_calificacion">Calificación:</label>
+                <input type="number" id="num_calificacion" min="1" max="5" required />
+
+                <label for="num_cedula">Cédula:</label>
+                <input type="text" id="num_cedula" required />
+
+                <label for="descripcion_at">Opinion:</label>
+                <textarea id="descripcion_at" required></textarea>
+
+                <label for="numero_telefono">Teléfono:</label>
+                <input type="text" id="numero_telefono" required /> <!-- Nuevo campo de teléfono -->
+
+                <button type="submit" class="btn">Actualizar</button>
+            </form>
+        </section>
+    </div>
+
+    <script>
+        // Cargar datos y renderizar tabla
+        fetch("http://localhost:3000/estudiantes")
+            .then(res => res.json())
+            .then(data => {
+                const tbody = document.querySelector("#tabla-estudiantes tbody");
+                tbody.innerHTML = data.map(est => `
+                    <tr data-id="${est.id_estudiante}">
+                        <td>${est.id_estudiante}</td>
+                        <td>${est.nombre_alumno}</td>
+                        <td>${est.email_alumno}</td>
+                        <td>${est.curso_alumno}</td>
+                        <td>${est.num_calificacion}</td>
+                        <td>${est.num_cedula}</td>
+                        <td>${est.descripcion_at || "Sin descripción"}</td>
+                        <td>${est.numero_telefono}</td> <!-- Muestra el teléfono -->
+                        <td>
+                            <button onclick="cargarEdicion(${est.id_estudiante}, '${est.nombre_alumno}', '${est.email_alumno}', '${est.curso_alumno}', ${est.num_calificacion}, '${est.num_cedula}', '${est.descripcion_at || ""}', '${est.numero_telefono}')">Editar</button>
+                            <button onclick="eliminarEstudiante(${est.id_estudiante})">Eliminar</button>
+                        </td>
+                    </tr>
+                `).join("");
+            });
+
+        // Función para cargar datos en el formulario de edición
+        function cargarEdicion(id, nombre, email, curso, calificacion, cedula, descripcion, telefono) {
+            // Redirigir al formulario de edición
+            window.scrollTo(0, document.getElementById('form-editar').offsetTop);
+
+            document.getElementById("id_estudiante").value = id;
+            document.getElementById("nombre_alumno").value = nombre;
+            document.getElementById("email_alumno").value = email;
+            document.getElementById("curso_alumno").value = curso;
+            document.getElementById("num_calificacion").value = calificacion;
+            document.getElementById("num_cedula").value = cedula;
+            document.getElementById("descripcion_at").value = descripcion;
+            document.getElementById("numero_telefono").value = telefono;  // Asigna el teléfono al campo
+        }
+
+        // Función para eliminar un estudiante (sin redirigir y sin recargar toda la página)
+        function eliminarEstudiante(id) {
+            fetch(`http://localhost:3000/estudiantes/${id}`, { method: "DELETE" })
+                .then(() => {
+                    alert("Encuesta  eliminada");
+                    // Eliminar la fila correspondiente del DOM
+                    const row = document.querySelector(`tr[data-id='${id}']`);
+                    row.remove();
+                })
+                .catch(err => console.error("Error al eliminar:", err));
+        }
+
+        // Renderizar gráfico de calificaciones
+        fetch("http://localhost:3000/grafico-calificaciones")
+            .then(res => res.json())
+            .then(data => {
+                const ctx = document.getElementById("grafico-calificaciones").getContext("2d");
+                new Chart(ctx, {
+                    type: "bar",
+                    data: {
+                        labels: data.map(d => `Calificación ${d.num_calificacion}`),
+                        datasets: [{
+                            label: "Calificacion de Conformidad de las Personas",
+                            data: data.map(d => d.cantidad),
+                            backgroundColor: "rgba(2, 109, 0, 0.6)"
+                        }]
+                    }
+                });
+            });
+
+        // Renderizar gráfico de cursos
+        fetch("http://localhost:3000/grafico-cursos")
+            .then(res => res.json())
+            .then(data => {
+                const ctx = document.getElementById("grafico-cursos").getContext("2d");
+                new Chart(ctx, {
+                    type: "pie",
+                    data: {
+                        labels: data.map(d => d.curso_alumno),
+                        datasets: [{
+                            label: "Cantidad de Personas Encuestadas",
+                            data: data.map(d => d.cantidad),
+                            backgroundColor: [
+                                "rgba(255, 99, 132, 0.6)",
+                                "rgba(54, 162, 235, 0.6)",
+                                "rgba(255, 206, 86, 0.6)",
+                                "rgba(75, 192, 192, 0.6)",
+                                "rgba(153, 102, 255, 0.6)",
+                                "rgba(255, 159, 64, 0.6)",
+                                "rgba(255, 99, 132, 0.6)",
+                                "rgba(54, 162, 235, 0.6)",
+                                "rgba(255, 99, 71, 0.6)",
+                                "rgba(0, 255, 255, 0.6)",
+                                "rgba(255, 165, 0, 0.6)",
+                                "rgba(0, 128, 0, 0.6)",
+                                "rgba(255, 215, 0, 0.6)",
+                                "rgba(128, 0, 128, 0.6)",
+                                "rgba(0, 0, 255, 0.6)",
+                                "rgba(34, 193, 195, 0.6)",
+                                "rgba(253, 187, 45, 0.6)",
+                                "rgba(76, 175, 80, 0.6)",
+                                "rgba(233, 30, 99, 0.6)",
+                                "rgba(63, 81, 181, 0.6)",
+                                "rgba(3, 169, 244, 0.6)",
+                                "rgba(255, 87, 34, 0.6)",
+                                "rgba(255, 193, 7, 0.6)",
+                                "rgba(156, 39, 176, 0.6)",
+                                "rgba(255, 255, 255, 0.6)",
+                                "rgba(0, 188, 212, 0.6)",
+                                "rgba(139, 195, 74, 0.6)",
+                                "rgba(255, 64, 129, 0.6)",
+                                "rgba(233, 30, 99, 0.6)",
+                                "rgba(72, 202, 228, 0.6)",
+                                "rgba(156, 39, 176, 0.6)",
+                                "rgba(63, 81, 181, 0.6)"
+                            ]
+                        }]
+                    }
+                });
+            });
+
+        // Función para enviar el formulario de edición
+        document.getElementById("form-editar").addEventListener("submit", (e) => {
+            e.preventDefault();
+            const id = document.getElementById("id_estudiante").value;
+            const data = {
+                nombre_alumno: document.getElementById("nombre_alumno").value,
+                email_alumno: document.getElementById("email_alumno").value,
+                curso_alumno: document.getElementById("curso_alumno").value,
+                num_calificacion: document.getElementById("num_calificacion").value,
+                num_cedula: document.getElementById("num_cedula").value,
+                descripcion_at: document.getElementById("descripcion_at").value,
+                numero_telefono: document.getElementById("numero_telefono").value  // Incluye el teléfono
+            };
+
+            fetch(`http://localhost:3000/estudiantes/${id}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(data),
+            })
+                .then(() => {
+                    alert("Estudiante actualizado");
+                    location.reload(); // Recargar la página para reflejar cambios
+                })
+                .catch(err => console.error("Error al actualizar:", err));
+        });
+    </script>
+</body>
+
+</html>
